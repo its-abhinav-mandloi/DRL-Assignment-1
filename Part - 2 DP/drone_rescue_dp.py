@@ -21,6 +21,8 @@ Configuration (derived from Group ID 151):
 # ============================================================
 # Cell 1: Imports and Setup
 # ============================================================
+import matplotlib
+matplotlib.use('Agg')  # Non-interactive backend (remove this line in Colab)
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
@@ -253,29 +255,29 @@ class DroneRescueEnv:
 
         return [(prob, ns, rew, dn) for ns, (prob, rew, dn) in results.items()]
 
-    def _apply_action_outcome(self, new_r, new_c, battery, rescue_status, is_hover=False):
-        """Apply the outcome of landing on a cell after a move.
+     def _apply_action_outcome(self, new_r, new_c, battery, rescue_status, is_hover=False):
+         """Apply the outcome of landing on a cell after a move.
 
-        Returns (next_state, reward, done).
-        """
-        rescue_status = list(rescue_status)
-        reward = REWARD_MOVE  # Default: -1 per action
-        done = False
+         Returns (next_state, reward, done).
+         """
+         rescue_status = list(rescue_status)
+         reward = REWARD_MOVE  # Default: -1 per action
+         done = False
 
-        dest_cell = self._get_cell_type(new_r, new_c, tuple(rescue_status))
+         dest_cell = self._get_cell_type(new_r, new_c, tuple(rescue_status))
 
-        # --- Battery update ---
-        if is_hover and dest_cell == 'C':
-            # Hover on charging station: +2 battery (capped)
-            new_battery = min(battery + 2, self.max_battery)
-            reward = REWARD_CHARGING  # +5
-        elif dest_cell == 'C' and not is_hover:
-            # Enter charging station: battery becomes full
-            new_battery = self.max_battery
-            reward = REWARD_CHARGING  # +5
-        else:
-            # Regular action: -1 battery
-            new_battery = battery - 1
+         # --- Battery update ---
+         if is_hover and dest_cell == 'C':
+             # Hover on charging station: +2 battery (capped)
+             new_battery = min(battery + 2, self.max_battery)
+             reward = REWARD_CHARGING  # +5 (reached charging station via hover)
+         elif dest_cell == 'C' and not is_hover:
+             # Enter charging station: battery becomes full
+             new_battery = self.max_battery
+             reward = REWARD_CHARGING  # +5 (reached charging station)
+         else:
+             # Regular action: -1 battery
+             new_battery = battery - 1
 
         # --- Check for rescue target ---
         if dest_cell == 'R':
@@ -388,6 +390,22 @@ class DroneRescueEnv:
         if all(rs == 1 for rs in rescue_status):
             return True
         return False
+
+    def get_valid_actions(self, state):
+        """Return all valid actions available from a given state.
+
+        Per assignment: all 5 actions (Up, Down, Left, Right, Hover) are always
+        available. Invalid moves (boundary, blocked cell) remain valid actions but
+        result in staying in place while consuming battery.
+
+        Args:
+            state: tuple (row, col, battery, *rescue_statuses)
+
+        Returns:
+            list of action indices [0, 1, 2, 3, 4]
+        """
+        # All actions are valid; the environment handles invalid moves by staying in place
+        return list(ACTIONS.keys())
 
     def render(self, state=None):
         """Print the grid with drone position and status.
@@ -508,9 +526,10 @@ def value_iteration(env, gamma=GAMMA, theta=THETA):
 
             v_old = V[s]
 
-            # Compute Q(s, a) for all actions
+            # Compute Q(s, a) for all valid actions
             action_values = []
-            for a in actions:
+            valid_actions = env.get_valid_actions(s)
+            for a in valid_actions:
                 q_value = 0
                 transitions = env.get_transition_prob(s, a)
                 for prob, next_state, reward, done in transitions:
@@ -527,10 +546,11 @@ def value_iteration(env, gamma=GAMMA, theta=THETA):
         iteration += 1
         delta_history.append(delta)
 
-        if iteration % 10 == 0 or delta < theta:
-            print(f"  Iteration {iteration:3d} | delta = {delta:.6f}")
+        # Print iteration info: every iteration for transparency
+        print(f"  Iteration {iteration:4d} | delta = {delta:.8f}")
 
         if delta < theta:
+            print(f"  → Converged at iteration {iteration}")
             break
 
     elapsed = time.time() - start_time
@@ -544,7 +564,8 @@ def value_iteration(env, gamma=GAMMA, theta=THETA):
 
         best_action = None
         best_value = float('-inf')
-        for a in actions:
+        valid_actions = env.get_valid_actions(s)
+        for a in valid_actions:
             q_value = 0
             transitions = env.get_transition_prob(s, a)
             for prob, next_state, reward, done in transitions:
@@ -642,7 +663,7 @@ plt.yscale('log')
 plt.grid(True, alpha=0.3)
 plt.tight_layout()
 plt.savefig('convergence_plot.png', dpi=150, bbox_inches='tight')
-plt.show()
+plt.close()
 print("✅ Convergence plot saved.")
 
 
@@ -749,17 +770,17 @@ def plot_policy_grid(env, policy, battery_level, rescue_status, title_suffix="")
 print("\n--- Policy at Full Battery (both targets unrescued) ---")
 fig1 = plot_policy_grid(env, policy_star, MAX_BATTERY, (0, 0))
 fig1.savefig('policy_full_battery.png', dpi=150, bbox_inches='tight')
-plt.show()
+plt.close(fig1)
 
 print("\n--- Policy at Low Battery (battery=3, both unrescued) ---")
 fig2 = plot_policy_grid(env, policy_star, 3, (0, 0))
 fig2.savefig('policy_low_battery.png', dpi=150, bbox_inches='tight')
-plt.show()
+plt.close(fig2)
 
 print("\n--- Policy after first target rescued (battery=10) ---")
 fig3 = plot_policy_grid(env, policy_star, 10, (1, 0))
 fig3.savefig('policy_one_rescued.png', dpi=150, bbox_inches='tight')
-plt.show()
+plt.close(fig3)
 
 
 # Trajectory visualisation
@@ -823,7 +844,7 @@ def plot_trajectory(env, trajectory, title="Optimal Policy Trajectory"):
 print("\n--- Drone Trajectory (following optimal policy) ---")
 fig_traj = plot_trajectory(env, trajectory)
 fig_traj.savefig('trajectory.png', dpi=150, bbox_inches='tight')
-plt.show()
+plt.close(fig_traj)
 print("✅ Policy and trajectory plots saved.")
 
 
@@ -888,25 +909,25 @@ def plot_value_heatmap(env, V, battery_level, rescue_status, title_suffix=""):
 print("\n--- Heatmap: Full Battery, Both Targets Unrescued ---")
 fig_h1 = plot_value_heatmap(env, V_star, MAX_BATTERY, (0, 0))
 fig_h1.savefig('heatmap_full_battery.png', dpi=150, bbox_inches='tight')
-plt.show()
+plt.close(fig_h1)
 
 # Heatmap 2: Low battery (3), both unrescued
 print("\n--- Heatmap: Low Battery (3), Both Targets Unrescued ---")
 fig_h2 = plot_value_heatmap(env, V_star, 3, (0, 0))
 fig_h2.savefig('heatmap_low_battery.png', dpi=150, bbox_inches='tight')
-plt.show()
+plt.close(fig_h2)
 
 # Heatmap 3: Medium battery (8), first target rescued
 print("\n--- Heatmap: Battery=8, Target 0 Rescued ---")
 fig_h3 = plot_value_heatmap(env, V_star, 8, (1, 0))
 fig_h3.savefig('heatmap_one_rescued.png', dpi=150, bbox_inches='tight')
-plt.show()
+plt.close(fig_h3)
 
 # Heatmap 4: Full battery, both rescued (should be ~0 everywhere)
 print("\n--- Heatmap: Full Battery, Both Rescued (terminal check) ---")
 fig_h4 = plot_value_heatmap(env, V_star, MAX_BATTERY, (1, 1))
 fig_h4.savefig('heatmap_all_rescued.png', dpi=150, bbox_inches='tight')
-plt.show()
+plt.close(fig_h4)
 
 print("\n--- State-Value Analysis ---")
 print("""
