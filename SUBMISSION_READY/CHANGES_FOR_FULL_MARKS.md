@@ -15,11 +15,11 @@ This PR addresses all grading risks identified in the initial code review and im
 ## 1. Reward System Fix (Critical)
 
 **Problem**: `drone_rescue_dp.py` had incorrect reward assignment for charging stations.
-- Was: `reward = REWARD_MOVE` (-1) when entering/hovering on charging cells
-- Now: `reward = REWARD_CHARGING` (+5) as per assignment spec
+- Entering/reaching a charging station now gives `REWARD_CHARGING` (+5)
+- Hovering on a charging station now restores battery by +2 without repeatedly awarding +5
 
 **File**: `drone_rescue_dp.py` lines 270-280  
-**Impact**: Correct optimal value computation and policy extraction; ensures energy management is incentivized  
+**Impact**: Correct optimal value computation and policy extraction; prevents charger reward farming while keeping energy management useful  
 **Rubric**: Deliverable 2 (DP Solution) - Value computation correctness
 
 ---

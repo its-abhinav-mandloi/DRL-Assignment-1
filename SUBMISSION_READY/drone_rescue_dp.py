@@ -120,10 +120,11 @@ class DroneRescueEnv:
     """
     Custom grid-world environment for autonomous drone rescue.
 
-    State: (row, col, battery, rescue_0_status, rescue_1_status)
+    State: (row, col, battery, rescue_0_status, rescue_1_status, charge_0_claimed)
       - row, col: drone position on the grid
       - battery: current battery level (0 to MAX_BATTERY)
       - rescue_i_status: 0 = not rescued, 1 = rescued
+      - charge_i_claimed: 0 = charging bonus not yet claimed, 1 = claimed
 
     Actions: 0=Up, 1=Down, 2=Left, 3=Right, 4=Hover
     """
@@ -145,6 +146,7 @@ class DroneRescueEnv:
         self.danger_cells = set()
         self.wind_cells = set()
         self.charging_cells = set()
+        self.charging_positions = []
 
         for r in range(self.rows):
             for c in range(self.cols):
@@ -157,6 +159,9 @@ class DroneRescueEnv:
                     self.wind_cells.add((r, c))
                 elif cell == 'C':
                     self.charging_cells.add((r, c))
+                    self.charging_positions.append((r, c))
+
+        self.num_charging = len(self.charging_positions)
 
         # Current state (for interactive simulation)
         self.state = None
@@ -167,12 +172,21 @@ class DroneRescueEnv:
         """Reset the environment to initial state.
 
         Returns:
-            state: tuple (row, col, battery, rescue_0, rescue_1)
+            state: tuple (row, col, battery, rescue_0, rescue_1, charge_0_claimed)
         """
         rescue_status = tuple([0] * self.num_rescue)
-        self.state = (self.start_pos[0], self.start_pos[1], self.max_battery) + rescue_status
+        charge_status = tuple([0] * self.num_charging)
+        self.state = (self.start_pos[0], self.start_pos[1], self.max_battery) + rescue_status + charge_status
         self.steps = 0
         return self.state
+
+    def _split_status(self, state):
+        """Split rescue and charging-bonus flags from a full state tuple."""
+        rescue_end = 3 + self.num_rescue
+        charge_end = rescue_end + self.num_charging
+        rescue_status = tuple(state[3:rescue_end])
+        charge_status = tuple(state[rescue_end:charge_end])
+        return rescue_status, charge_status
 
     def _get_cell_type(self, row, col, rescue_status):
         """Get the effective cell type considering rescue status.
@@ -209,7 +223,7 @@ class DroneRescueEnv:
 
         return new_r, new_c
 
-    def _compute_transition(self, row, col, battery, rescue_status, action):
+    def _compute_transition(self, row, col, battery, rescue_status, charge_status, action):
         """Compute the outcome of taking an action from a given state.
 
         Returns a list of (probability, next_state, reward, done) tuples.
@@ -236,7 +250,7 @@ class DroneRescueEnv:
 
                 new_r, new_c = self._move_result(row, col, actual_action)
                 next_state, reward, done = self._apply_action_outcome(
-                    new_r, new_c, battery, rescue_status
+                    new_r, new_c, battery, rescue_status, charge_status
                 )
 
                 # Accumulate probabilities for same next_state
@@ -249,18 +263,19 @@ class DroneRescueEnv:
             # Deterministic transition (no wind or hover)
             new_r, new_c = self._move_result(row, col, action)
             next_state, reward, done = self._apply_action_outcome(
-                new_r, new_c, battery, rescue_status, is_hover=(action == 4)
+                new_r, new_c, battery, rescue_status, charge_status, is_hover=(action == 4)
             )
             results[next_state] = (1.0, reward, done)
 
         return [(prob, ns, rew, dn) for ns, (prob, rew, dn) in results.items()]
 
-    def _apply_action_outcome(self, new_r, new_c, battery, rescue_status, is_hover=False):
+    def _apply_action_outcome(self, new_r, new_c, battery, rescue_status, charge_status, is_hover=False):
         """Apply the outcome of landing on a cell after a move.
 
         Returns (next_state, reward, done).
         """
         rescue_status = list(rescue_status)
+        charge_status = list(charge_status)
         reward = REWARD_MOVE  # Default: -1 per action
         done = False
 
@@ -268,13 +283,16 @@ class DroneRescueEnv:
 
         # --- Battery update ---
         if is_hover and dest_cell == 'C':
-            # Hover on charging station: +2 battery (capped)
+            # Hovering on a charging station restores battery, but the +5
+            # reward is only for reaching/entering the station.
             new_battery = min(battery + 2, self.max_battery)
-            reward = REWARD_CHARGING  # +5 (reached charging station via hover)
         elif dest_cell == 'C' and not is_hover:
             # Enter charging station: battery becomes full
             new_battery = self.max_battery
-            reward = REWARD_CHARGING  # +5 (reached charging station)
+            charge_idx = self.charging_positions.index((new_r, new_c))
+            if charge_status[charge_idx] == 0:
+                reward = REWARD_CHARGING  # +5 (reached charging station)
+                charge_status[charge_idx] = 1
         else:
             # Regular action: -1 battery
             new_battery = battery - 1
@@ -300,7 +318,7 @@ class DroneRescueEnv:
         if all(rs == 1 for rs in rescue_status):
             done = True
 
-        next_state = (new_r, new_c, new_battery) + tuple(rescue_status)
+        next_state = (new_r, new_c, new_battery) + tuple(rescue_status) + tuple(charge_status)
         return next_state, reward, done
 
     def step(self, action):
@@ -316,13 +334,13 @@ class DroneRescueEnv:
             raise ValueError("Environment not initialized. Call reset() first.")
 
         row, col, battery = self.state[0], self.state[1], self.state[2]
-        rescue_status = self.state[3:]
+        rescue_status, charge_status = self._split_status(self.state)
 
         # Battery already 0 → already done
         if battery == 0:
             return self.state, 0, True, {"reason": "already_terminated"}
 
-        transitions = self._compute_transition(row, col, battery, rescue_status, action)
+        transitions = self._compute_transition(row, col, battery, rescue_status, charge_status, action)
 
         # For simulation: sample from transitions
         probs = [t[0] for t in transitions]
@@ -347,19 +365,19 @@ class DroneRescueEnv:
         """Get transition probabilities for Dynamic Programming.
 
         Args:
-            state: tuple (row, col, battery, rescue_0, rescue_1)
+            state: tuple (row, col, battery, rescue_0, rescue_1, charge_0_claimed)
             action: int (0-4)
 
         Returns:
             list of (probability, next_state, reward, done) tuples
         """
         row, col, battery = state[0], state[1], state[2]
-        rescue_status = state[3:]
+        rescue_status, charge_status = self._split_status(state)
 
-        if battery == 0:
+        if self.is_terminal(state):
             return [(1.0, state, 0, True)]
 
-        return self._compute_transition(row, col, battery, rescue_status, action)
+        return self._compute_transition(row, col, battery, rescue_status, charge_status, action)
 
     def get_all_states(self):
         """Enumerate all valid states for DP.
@@ -369,6 +387,7 @@ class DroneRescueEnv:
         """
         states = []
         rescue_combos = list(product([0, 1], repeat=self.num_rescue))
+        charge_combos = list(product([0, 1], repeat=self.num_charging))
 
         for r in range(self.rows):
             for c in range(self.cols):
@@ -376,14 +395,15 @@ class DroneRescueEnv:
                     continue  # Drone can never be on a blocked cell
                 for bat in range(0, self.max_battery + 1):
                     for rc in rescue_combos:
-                        state = (r, c, bat) + rc
-                        states.append(state)
+                        for cc in charge_combos:
+                            state = (r, c, bat) + rc + cc
+                            states.append(state)
         return states
 
     def is_terminal(self, state):
         """Check if a state is terminal."""
         battery = state[2]
-        rescue_status = state[3:]
+        rescue_status, _ = self._split_status(state)
 
         if battery == 0:
             return True
@@ -417,10 +437,11 @@ class DroneRescueEnv:
             state = self.state
 
         row, col, battery = state[0], state[1], state[2]
-        rescue_status = state[3:]
+        rescue_status, charge_status = self._split_status(state)
 
         print(f"\nBattery: {battery}/{self.max_battery} | "
               f"Rescued: {list(rescue_status)} | "
+              f"Charging bonus claimed: {list(charge_status)} | "
               f"Position: ({row},{col})")
         print("     " + "  ".join([f"C{c}" for c in range(self.cols)]))
 
@@ -476,7 +497,7 @@ for a in test_actions:
 
 # Test transition probabilities on a wind cell
 print("\n--- Transition Probabilities from Wind Cell (0,2) ---")
-test_state = (0, 2, 10, 0, 0)  # On wind cell
+test_state = (0, 2, 10, 0, 0, 0)  # On wind cell
 for a in range(5):
     transitions = env.get_transition_prob(test_state, a)
     print(f"  Action {ACTION_LABELS[a]}:")
@@ -600,7 +621,7 @@ print(f"Final delta: {vi_info['final_delta']:.6f}")
 print(f"Total states: {vi_info['num_states']}")
 
 # Show value of initial state
-initial_state = (0, 0, MAX_BATTERY, 0, 0)
+initial_state = (0, 0, MAX_BATTERY, 0, 0, 0)
 print(f"\nV*(start state) = {V_star.get(initial_state, 'N/A'):.4f}")
 print(f"π*(start state) = {ACTION_LABELS.get(policy_star.get(initial_state), 'N/A')}")
 
@@ -638,6 +659,7 @@ def simulate_policy(env, policy, max_steps=MAX_STEPS):
     return trajectory, total_reward
 
 
+np.random.seed(151)  # Reproducible rollout through stochastic wind cells
 trajectory, total_reward = simulate_policy(env, policy_star)
 
 print(f"Total steps: {len(trajectory) - 1}")
@@ -647,8 +669,9 @@ for i, (state, action, reward) in enumerate(trajectory):
     action_str = ACTION_LABELS.get(action, "END") if action is not None else "END"
     pos = f"({state[0]},{state[1]})"
     bat = state[2]
-    rescued = list(state[3:])
+    rescued, charge_status = env._split_status(state)
     print(f"  Step {i:2d}: pos={pos} bat={bat:2d} rescued={rescued} "
+          f"charge_bonus={charge_status} "
           f"→ {action_str:5s} (R={reward:+.0f})")
 
 # Convergence plot
@@ -674,7 +697,7 @@ print("\n" + "=" * 60)
 print("DELIVERABLE 3: Policy Visualisation")
 print("=" * 60)
 
-def plot_policy_grid(env, policy, battery_level, rescue_status, title_suffix=""):
+def plot_policy_grid(env, policy, battery_level, rescue_status, charge_status=None, title_suffix=""):
     """Plot the optimal policy as arrows on the grid.
 
     Args:
@@ -682,8 +705,12 @@ def plot_policy_grid(env, policy, battery_level, rescue_status, title_suffix="")
         policy: dict mapping state → action
         battery_level: fixed battery level to visualise
         rescue_status: tuple of rescue statuses (e.g., (0, 0))
+        charge_status: tuple of charging-bonus flags (default: all unclaimed)
         title_suffix: additional text for the title
     """
+    if charge_status is None:
+        charge_status = tuple([0] * env.num_charging)
+
     fig, ax = plt.subplots(1, 1, figsize=(8, 8))
 
     # Color map for cell types
@@ -715,7 +742,7 @@ def plot_policy_grid(env, policy, battery_level, rescue_status, title_suffix="")
 
             # Draw policy arrow
             if (r, c) not in env.blocked_cells:
-                state = (r, c, battery_level) + rescue_status
+                state = (r, c, battery_level) + rescue_status + charge_status
                 action = policy.get(state)
 
                 if action is not None:
@@ -746,7 +773,9 @@ def plot_policy_grid(env, policy, battery_level, rescue_status, title_suffix="")
 
     rescued_str = ', '.join([f'T{i}={"✓" if s else "✗"}'
                              for i, s in enumerate(rescue_status)])
-    ax.set_title(f'Optimal Policy (Battery={battery_level}, {rescued_str}){title_suffix}',
+    charge_str = ', '.join([f'C{i}={"✓" if s else "✗"}'
+                            for i, s in enumerate(charge_status)])
+    ax.set_title(f'Optimal Policy (Battery={battery_level}, {rescued_str}, {charge_str}){title_suffix}',
                  fontsize=13, fontweight='bold')
 
     # Legend
@@ -778,7 +807,7 @@ fig2.savefig('policy_low_battery.png', dpi=150, bbox_inches='tight')
 plt.close(fig2)
 
 print("\n--- Policy after first target rescued (battery=10) ---")
-fig3 = plot_policy_grid(env, policy_star, 10, (1, 0))
+fig3 = plot_policy_grid(env, policy_star, 10, (1, 0), (1,))
 fig3.savefig('policy_one_rescued.png', dpi=150, bbox_inches='tight')
 plt.close(fig3)
 
@@ -855,15 +884,18 @@ print("\n" + "=" * 60)
 print("DELIVERABLE 4: State-Value Heatmap Analysis")
 print("=" * 60)
 
-def plot_value_heatmap(env, V, battery_level, rescue_status, title_suffix=""):
+def plot_value_heatmap(env, V, battery_level, rescue_status, charge_status=None, title_suffix=""):
     """Plot heatmap of V*(row, col) for fixed battery and rescue status."""
+    if charge_status is None:
+        charge_status = tuple([0] * env.num_charging)
+
     value_grid = np.full((env.rows, env.cols), np.nan)
 
     for r in range(env.rows):
         for c in range(env.cols):
             if (r, c) in env.blocked_cells:
                 continue
-            state = (r, c, battery_level) + rescue_status
+            state = (r, c, battery_level) + rescue_status + charge_status
             value_grid[r][c] = V.get(state, 0.0)
 
     fig, ax = plt.subplots(1, 1, figsize=(8, 7))
@@ -898,7 +930,9 @@ def plot_value_heatmap(env, V, battery_level, rescue_status, title_suffix=""):
 
     rescued_str = ', '.join([f'T{i}={"✓" if s else "✗"}'
                              for i, s in enumerate(rescue_status)])
-    ax.set_title(f'State-Value Heatmap V*(row,col)\nBattery={battery_level}, {rescued_str}{title_suffix}',
+    charge_str = ', '.join([f'C{i}={"✓" if s else "✗"}'
+                            for i, s in enumerate(charge_status)])
+    ax.set_title(f'State-Value Heatmap V*(row,col)\nBattery={battery_level}, {rescued_str}, {charge_str}{title_suffix}',
                  fontsize=13, fontweight='bold')
 
     plt.tight_layout()
@@ -919,13 +953,13 @@ plt.close(fig_h2)
 
 # Heatmap 3: Medium battery (8), first target rescued
 print("\n--- Heatmap: Battery=8, Target 0 Rescued ---")
-fig_h3 = plot_value_heatmap(env, V_star, 8, (1, 0))
+fig_h3 = plot_value_heatmap(env, V_star, 8, (1, 0), (1,))
 fig_h3.savefig('heatmap_one_rescued.png', dpi=150, bbox_inches='tight')
 plt.close(fig_h3)
 
 # Heatmap 4: Full battery, both rescued (should be ~0 everywhere)
 print("\n--- Heatmap: Full Battery, Both Rescued (terminal check) ---")
-fig_h4 = plot_value_heatmap(env, V_star, MAX_BATTERY, (1, 1))
+fig_h4 = plot_value_heatmap(env, V_star, MAX_BATTERY, (1, 1), (1,))
 fig_h4.savefig('heatmap_all_rescued.png', dpi=150, bbox_inches='tight')
 plt.close(fig_h4)
 
@@ -974,21 +1008,23 @@ DYNAMIC PROGRAMMING SCALABILITY ANALYSIS
 The state space in our MDP grows EXPONENTIALLY with problem complexity:
 
    |S| = (Grid Positions) × (Battery Levels) × 2^(Rescue Targets)
+         × 2^(Charging Stations)
 
-   Current (5×5, bat=15, 2 targets):
-       23 × 16 × 4 = 1,472 states → DP runs in seconds ✅
+   Current (5×5, bat=15, 2 targets, 1 charger):
+       23 × 16 × 4 × 2 = 2,944 states → DP runs in seconds ✅
 
    Scaled up scenarios:
    ┌────────────────────────────────┬────────────┬──────────────┐
    │ Scenario                       │ States     │ DP Feasible? │
    ├────────────────────────────────┼────────────┼──────────────┤
-   │ 5×5, bat=15, 2 targets         │ ~1,500     │ ✅ Seconds    │
+   │ 5×5, bat=15, 2 targets         │ ~3,000     │ ✅ Seconds    │
    │ 10×10, bat=20, 5 targets       │ ~672,000   │ ⚠️ Minutes   │
    │ 20×20, bat=30, 10 targets      │ ~12.6B     │ ❌ Impossible │
    │ 50×50, bat=50, 20 targets      │ ~134T      │ ❌ Impossible │
    └────────────────────────────────┴────────────┴──────────────┘
 
    Each added rescue target DOUBLES the state space.
+   Each charging-station bonus flag DOUBLES it again.
    Each added battery level adds (Positions × 2^targets) states.
    Larger grids scale quadratically in positions.
 

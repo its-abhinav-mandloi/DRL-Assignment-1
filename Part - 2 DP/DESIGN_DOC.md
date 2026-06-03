@@ -215,7 +215,7 @@ After determining the destination cell, apply these updates:
 | C (Charging) | battery = MAX | +5 | Battery fully restored |
 | W (Wind) | battery -= 1 | -1 | Wind affects NEXT move from here |
 | X (Blocked) / Off-grid | battery -= 1 | -1 | Drone stays in current position |
-| Hover on C | battery = min(battery + 2, MAX) | +5 | Battery +2 (capped) |
+| Hover on C | battery = min(battery + 2, MAX) | -1 | Battery +2 (capped); no repeated charging reward |
 | Hover on non-C | battery -= 1 | -1 | — |
 
 ### 3.4 Reward Structure (R)
@@ -323,7 +323,7 @@ state = (2, 3, 7, 1, 0)
 2. **Boundary handling**: If movement would go off-grid or into X cell → drone stays, still loses 1 battery.
 3. **Charging station entry vs hover**:
    - Entering C → battery becomes MAX, reward = +5
-   - Hovering on C → battery += 2 (capped at MAX), reward = +5
+   - Hovering on C → battery += 2 (capped at MAX), regular action reward = -1
 4. **Rescue target removal**: Once rescued, the cell behaves as F for all future states.
 5. **Battery = 0 is absorbing**: No further actions possible, episode ends.
 

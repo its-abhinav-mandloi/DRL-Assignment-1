@@ -122,23 +122,23 @@ Submission_Part2_DP/
 DELIVERABLE 2: Dynamic Programming — Value Iteration
 =============================================================
 
-Total states to evaluate: 1472
+Total states to evaluate: 2944
 
-  Iteration    1 | delta = 23.87654321
-  Iteration    2 | delta = 12.45687321
-  Iteration    3 | delta = 8.12345678
+  Iteration    1 | delta = 38.99525000
+  Iteration    2 | delta = 19.00000000
+  Iteration    3 | delta = 18.05000000
   ...
-  Iteration   28 | delta = 0.00089543
-  Iteration   29 | delta = 0.00012345
-  → Converged at iteration 29
+  Iteration   10 | delta = 0.00140203
+  Iteration   11 | delta = 0.00006589
+  → Converged at iteration 11
 
 --- Value Iteration Results ---
-Converged in 29 iterations
-Runtime: 0.45 seconds
-Final delta: 0.00012345
-Total states: 1472
+Converged in 11 iterations
+Runtime: ~0.8 seconds
+Final delta: 0.000066
+Total states: 2944
 
-V*(start state) = 12.3456
+V*(start state) = 30.1699
 π*(start state) = Right
 ```
 
@@ -185,7 +185,7 @@ pip install matplotlib numpy
 3. Export to PDF
 
 ### Issue: Convergence takes too long
-**Solution**: Normal. 5×5 grid with 1472 states typically converges in 25-35 iterations (~0.5 seconds).
+**Solution**: Normal. 5×5 grid with 2,944 states typically converges in about 10-15 iterations (~1 second).
 
 ---
 

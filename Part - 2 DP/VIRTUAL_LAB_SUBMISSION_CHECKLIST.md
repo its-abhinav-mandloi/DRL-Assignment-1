@@ -97,5 +97,5 @@ From the assignment PDF, key factors include:
 - Creativity, Originality, Uniqueness
 - Code Modularity ✅ (class-based, modular functions)
 - Representation ✅ (multiple visualisations)
-- Reproducibility ✅ (`numpy.random.seed` not used — consider adding for full reproducibility)
+- Reproducibility ✅ (`np.random.seed(151)` is set before the stochastic policy rollout)
 - **Similarity to AI tool solutions** — reviewers check for this; ensure your explanations and comments are in your own words

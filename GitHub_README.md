@@ -64,25 +64,25 @@ This project implements a solution to the autonomous drone rescue problem using 
 
 **Dynamics**:
 - Wind mechanics: 20% chance of random movement
-- Charging station: Restores battery (+2 when hovering, +15 when stationary)
+- Charging station: restores battery to full when entered; hovering on it restores +2 battery without repeated charging reward
 - Rescue targets: Removed when visited
 - Battery depletion: -1 per action
-- Danger zones: -5 penalty per visit
+- Danger zones: -10 penalty per visit
 
 **Rewards**:
-- Rescue target: +10
-- Reach finish: +50
-- Move: -1
-- Charging: +5
-- Danger zone: -5
+- Rescue target: +20
+- Reach charging station: +5
+- Regular movement / hover: -1
+- Danger zone: -10
+- Battery exhausted: -20
 
 ### Value Iteration Algorithm
 
 ```
-Converges in ~29 iterations
+Converges in ~11 iterations
 Final delta: < 1e-3
-Runtime: ~0.45 seconds
-State space: 1,472 valid states
+Runtime: ~0.8 seconds
+State space: 2,944 valid states
 ```
 
 ## 📊 Results
@@ -246,9 +246,9 @@ All 9 plots are included:
 
 ## 📝 Notes
 
-- **State Space**: 1,472 valid states (23 positions × 16 battery levels × 4 rescue combinations)
-- **Convergence**: ~29 iterations (efficient convergence)
-- **Runtime**: ~0.45 seconds (fast execution)
+- **State Space**: 2,944 valid states (23 positions × 16 battery levels × 4 rescue combinations × 2 charging-bonus states)
+- **Convergence**: ~11 iterations (efficient convergence)
+- **Runtime**: ~0.8 seconds (fast execution)
 - **Accuracy**: Final delta < 1e-3 (meets convergence threshold)
 
 ## 🎓 Expected Score

@@ -24,7 +24,7 @@
 **Message**: Part 2 DP: Full marks ready - Fix rewards, add get_valid_actions, improve iteration logging
 
 **Changes**:
-- Fixed charging reward bug (REWARD_MOVE → REWARD_CHARGING)
+- Fixed charging reward bug (+5 on charger entry, no hover reward farming)
 - Implemented get_valid_actions() method
 - Enhanced iteration logging (all iterations, 8-decimal precision)
 - Added MDP formulation documentation

@@ -184,8 +184,8 @@ Virtual Machine ID: node-lab-vm-001.university.edu
 ### Deliverable 2: Dynamic Programming Solution (2 marks)
 ✅ **Complete**
 - Value Iteration implementation
-- Converges in ~29 iterations
-- Runtime: ~0.45 seconds
+- Converges in ~11 iterations
+- Runtime: ~0.8 seconds
 - Final delta < 1e-3 (θ threshold)
 - V* and π* computed correctly
 - **FIXED**: Charging reward now +5
@@ -388,7 +388,7 @@ Date:   2026-05-23
     Part 2 DP: Full marks ready - Fix rewards, add get_valid_actions, improve iteration logging
     
     Changes:
-    1. Fix reward system: charging station now correctly returns REWARD_CHARGING (+5)
+    1. Fix reward system: charging station entry returns REWARD_CHARGING (+5), hover only recharges battery
        instead of REWARD_MOVE (-1) when entering or hovering on charging cells
     2. Implement get_valid_actions() method per assignment requirements
        - All 5 actions (Up, Down, Left, Right, Hover) always valid

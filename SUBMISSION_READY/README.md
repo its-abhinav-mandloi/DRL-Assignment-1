@@ -119,10 +119,10 @@ SUBMISSION_READY/
 
 **Deliverable 2: DP Algorithm** (2/2)
 - Value Iteration implementation ✅
-- Convergence verification (~29 iterations) ✅
+- Convergence verification (~11 iterations) ✅
 - V* and π* computed correctly ✅
 - All iterations logged with precision ✅
-- Charging reward fixed (+5) ✅
+- Charging reward fixed (+5 on entry, no hover farming) ✅
 - get_valid_actions() implemented ✅
 
 **Deliverable 3: Policy Visualization** (1/1)
@@ -145,7 +145,7 @@ SUBMISSION_READY/
 
 ### ✅ Critical Fixes Applied
 
-1. **Charging Reward Bug** - Fixed: REWARD_MOVE → REWARD_CHARGING
+1. **Charging Reward Bug** - Fixed: +5 only on charger entry; hover recharges without reward farming
 2. **Missing Method** - Added: get_valid_actions() implementation
 3. **Iteration Logging** - Enhanced: All iterations, higher precision
 4. **MDP Documentation** - Added: Comprehensive state/action/transition explanation
@@ -211,8 +211,8 @@ After uploading:
 
 ### 🚀 Performance Metrics
 
-- Environment Size: 5×5 grid, 1,472 valid states
-- DP Runtime: ~0.45 seconds
+- Environment Size: 5×5 grid, 2,944 valid states
+- DP Runtime: ~0.8 seconds
 - Convergence Iterations: ~29
 - Final Delta: < 1e-3 (below threshold)
 - All Plots: Generated and verified
