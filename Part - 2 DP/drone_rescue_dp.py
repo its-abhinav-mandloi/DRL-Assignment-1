@@ -3,18 +3,28 @@
 Part 2: Autonomous Drone Rescue Using Dynamic Programming
 =============================================================================
 Course : Deep Reinforcement Learning (DRL NSP4)
-Assignment : Assignment 1 — Part 2 (DP)
+Assignment : Assignment 1 - Part 2 (DP)
 Group ID : 151 (last digit = 1)
 =============================================================================
+Team 151 - Dynamic Programming
+
+Name                  Email
+--------------------  -------------------------------------------
+Abhinav Mandloi       2025aa05473@wilp.bits-pilani.ac.in
+Prajwal Rastogi       2025aa05564@wilp.bits-pilani.ac.in
+Pritish Joshi         2025aa05686@wilp.bits-pilani.ac.in
+Satwinder Singh       2025aa05553@wilp.bits-pilani.ac.in
+Shray Vijay           2025aa05533@wilp.bits-pilani.ac.in
+=============================================================================
 Configuration (derived from Group ID 151):
-  - Grid Size      : 5×5
+  - Grid Size      : 5x5
   - Rescue Targets  : 2
   - Charging Stations: 1
   - Danger Zones    : 3
   - Blocked Cells   : 2
   - Max Battery     : 15 (odd last digit)
   - Wind Probability: 20% (last digit 0-4)
-  - Max Steps       : 50 (5×5 grid)
+  - Max Steps       : 50 (5x5 grid)
 =============================================================================
 """
 
@@ -46,7 +56,7 @@ print("=" * 60)
 # Cell 2: Environment Configuration
 # ============================================================
 
-# Grid layout for Group ID 151 (5×5)
+# Grid layout for Group ID 151 (5x5)
 # S = Start, F = Free, D = Danger, R = Rescue
 # C = Charging, W = Wind, X = Blocked
 GRID_LAYOUT = [
@@ -963,7 +973,6 @@ fig_h4 = plot_value_heatmap(env, V_star, MAX_BATTERY, (1, 1), (1,))
 fig_h4.savefig('heatmap_all_rescued.png', dpi=150, bbox_inches='tight')
 plt.close(fig_h4)
 
-print("\n--- State-Value Analysis ---")
 print("""
 OBSERVATIONS:
 
