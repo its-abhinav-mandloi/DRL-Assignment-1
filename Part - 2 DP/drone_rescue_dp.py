@@ -81,7 +81,7 @@ ACTIONS = {
     3: (0, 1),    # Right
     4: (0, 0),    # Hover
 }
-ACTION_NAMES = {0: '↑', 1: '↓', 2: '←', 3: '→', 4: '●'}
+ACTION_NAMES = {0: 'Up', 1: 'Down', 2: 'Left', 3: 'Right', 4: 'Hover'}
 ACTION_LABELS = {0: 'Up', 1: 'Down', 2: 'Left', 3: 'Right', 4: 'Hover'}
 
 # Find rescue target positions from grid
@@ -93,12 +93,12 @@ for r in range(GRID_ROWS):
 NUM_RESCUE = len(RESCUE_POSITIONS)
 
 print("\n--- Environment Configuration ---")
-print(f"Grid Size       : {GRID_ROWS}×{GRID_COLS}")
+print(f"Grid Size       : {GRID_ROWS}x{GRID_COLS}")
 print(f"Max Battery     : {MAX_BATTERY}")
 print(f"Wind Probability: {WIND_PROB*100:.0f}%")
 print(f"Max Steps       : {MAX_STEPS}")
 print(f"Discount Factor : {GAMMA}")
-print(f"Convergence θ   : {THETA}")
+print(f"Convergence Theta: {THETA}")
 print(f"Rescue Targets  : {RESCUE_POSITIONS}")
 print(f"Num Rescue      : {NUM_RESCUE}")
 
@@ -198,7 +198,7 @@ class DroneRescueEnv:
             # Check if this rescue target has been rescued
             idx = self.rescue_positions.index((row, col))
             if rescue_status[idx] == 1:
-                return 'F'  # Already rescued → treat as free
+                return 'F'  # Already rescued -> treat as free
         return cell
 
     def _move_result(self, row, col, action):
@@ -336,7 +336,7 @@ class DroneRescueEnv:
         row, col, battery = self.state[0], self.state[1], self.state[2]
         rescue_status, charge_status = self._split_status(self.state)
 
-        # Battery already 0 → already done
+        # Battery already 0 -> already done
         if battery == 0:
             return self.state, 0, True, {"reason": "already_terminated"}
 
@@ -439,9 +439,9 @@ class DroneRescueEnv:
         row, col, battery = state[0], state[1], state[2]
         rescue_status, charge_status = self._split_status(state)
 
-        print(f"\nBattery: {battery}/{self.max_battery} | "
-              f"Rescued: {list(rescue_status)} | "
-              f"Charging bonus claimed: {list(charge_status)} | "
+        print(f"\nBattery: {battery}/{self.max_battery}  "
+              f"Rescued: {list(rescue_status)}  "
+              f"Charging bonus claimed: {list(charge_status)}  "
               f"Position: ({row},{col})")
         print("     " + "  ".join([f"C{c}" for c in range(self.cols)]))
 
@@ -449,13 +449,13 @@ class DroneRescueEnv:
             row_str = f"R{r}  "
             for c in range(self.cols):
                 if r == row and c == col:
-                    row_str += "[ 🚁] "
+                    row_str += "[ D ] "
                 else:
                     cell = self._get_cell_type(r, c, rescue_status)
                     symbols = {
-                        'S': ' S ', 'F': ' · ', 'D': ' ☠ ',
-                        'R': ' 🧑', 'C': ' ⚡', 'W': ' 💨',
-                        'X': ' ▓ '
+                        'S': ' S ', 'F': ' . ', 'D': ' ! ',
+                        'R': ' R ', 'C': ' C ', 'W': ' W ',
+                        'X': ' X '
                     }
                     row_str += f"[{symbols.get(cell, ' ? ')}] "
             print(row_str)
@@ -490,7 +490,7 @@ state = env.reset()
 test_actions = [3, 1, 1, 3, 3]  # Right, Down, Down, Right, Right
 for a in test_actions:
     next_state, reward, done, info = env.step(a)
-    print(f"Action: {ACTION_LABELS[a]:5s} → State: {next_state}, "
+    print(f"Action: {ACTION_LABELS[a]:5s} -> State: {next_state}, "
           f"Reward: {reward:+.0f}, Done: {done}")
     if done:
         break
@@ -502,19 +502,19 @@ for a in range(5):
     transitions = env.get_transition_prob(test_state, a)
     print(f"  Action {ACTION_LABELS[a]}:")
     for prob, ns, rew, dn in transitions:
-        print(f"    P={prob:.3f} → state={ns}, R={rew:+.0f}, done={dn}")
+        print(f"    P={prob:.3f} -> state={ns}, R={rew:+.0f}, done={dn}")
 
 
 # ============================================================
 # Cell 5: Value Iteration
 # ============================================================
 print("\n" + "=" * 60)
-print("DELIVERABLE 2: Dynamic Programming — Value Iteration")
+print("DELIVERABLE 2: Dynamic Programming - Value Iteration")
 print("=" * 60)
 
 def value_iteration(env, gamma=GAMMA, theta=THETA):
     """
-    Compute optimal value function V* and policy π* using Value Iteration.
+    Compute optimal value function V* and policy pi* using Value Iteration.
 
     Args:
         env: DroneRescueEnv instance
@@ -522,8 +522,8 @@ def value_iteration(env, gamma=GAMMA, theta=THETA):
         theta: convergence threshold
 
     Returns:
-        V: dict mapping state → optimal value
-        policy: dict mapping state → optimal action
+        V: dict mapping state -> optimal value
+        policy: dict mapping state -> optimal action
         info: dict with convergence stats
     """
     # Step 1: Enumerate all states
@@ -568,10 +568,10 @@ def value_iteration(env, gamma=GAMMA, theta=THETA):
         delta_history.append(delta)
 
         # Print iteration info: every iteration for transparency
-        print(f"  Iteration {iteration:4d} | delta = {delta:.8f}")
+        print(f"  Iteration {iteration:4d}  delta = {delta:.8f}")
 
         if delta < theta:
-            print(f"  → Converged at iteration {iteration}")
+            print(f"  -> Converged at iteration {iteration}")
             break
 
     elapsed = time.time() - start_time
@@ -623,7 +623,7 @@ print(f"Total states: {vi_info['num_states']}")
 # Show value of initial state
 initial_state = (0, 0, MAX_BATTERY, 0, 0, 0)
 print(f"\nV*(start state) = {V_star.get(initial_state, 'N/A'):.4f}")
-print(f"π*(start state) = {ACTION_LABELS.get(policy_star.get(initial_state), 'N/A')}")
+print(f"pi*(start state) = {ACTION_LABELS.get(policy_star.get(initial_state), 'N/A')}")
 
 
 # ============================================================
@@ -672,12 +672,12 @@ for i, (state, action, reward) in enumerate(trajectory):
     rescued, charge_status = env._split_status(state)
     print(f"  Step {i:2d}: pos={pos} bat={bat:2d} rescued={rescued} "
           f"charge_bonus={charge_status} "
-          f"→ {action_str:5s} (R={reward:+.0f})")
+          f"-> {action_str:5s} (R={reward:+.0f})")
 
 # Convergence plot
 plt.figure(figsize=(10, 4))
 plt.plot(vi_info['delta_history'], 'b-', linewidth=2)
-plt.axhline(y=THETA, color='r', linestyle='--', label=f'θ = {THETA}')
+plt.axhline(y=THETA, color='r', linestyle='--', label=f'theta = {THETA}')
 plt.xlabel('Iteration', fontsize=12)
 plt.ylabel('Max Delta (|V_new - V_old|)', fontsize=12)
 plt.title('Value Iteration Convergence', fontsize=14)
@@ -687,7 +687,7 @@ plt.grid(True, alpha=0.3)
 plt.tight_layout()
 plt.savefig('convergence_plot.png', dpi=150, bbox_inches='tight')
 plt.close()
-print("✅ Convergence plot saved.")
+print("Convergence plot saved.")
 
 
 # ============================================================
@@ -702,7 +702,7 @@ def plot_policy_grid(env, policy, battery_level, rescue_status, charge_status=No
 
     Args:
         env: DroneRescueEnv
-        policy: dict mapping state → action
+        policy: dict mapping state -> action
         battery_level: fixed battery level to visualise
         rescue_status: tuple of rescue statuses (e.g., (0, 0))
         charge_status: tuple of charging-bonus flags (default: all unclaimed)
@@ -771,9 +771,9 @@ def plot_policy_grid(env, policy, battery_level, rescue_status, charge_status=No
     ax.set_yticklabels([f'Row {r}' for r in range(env.rows - 1, -1, -1)])
     ax.set_aspect('equal')
 
-    rescued_str = ', '.join([f'T{i}={"✓" if s else "✗"}'
+    rescued_str = ', '.join([f'T{i}={"Y" if s else "N"}'
                              for i, s in enumerate(rescue_status)])
-    charge_str = ', '.join([f'C{i}={"✓" if s else "✗"}'
+    charge_str = ', '.join([f'C{i}={"Y" if s else "N"}'
                             for i, s in enumerate(charge_status)])
     ax.set_title(f'Optimal Policy (Battery={battery_level}, {rescued_str}, {charge_str}){title_suffix}',
                  fontsize=13, fontweight='bold')
@@ -874,7 +874,7 @@ print("\n--- Drone Trajectory (following optimal policy) ---")
 fig_traj = plot_trajectory(env, trajectory)
 fig_traj.savefig('trajectory.png', dpi=150, bbox_inches='tight')
 plt.close(fig_traj)
-print("✅ Policy and trajectory plots saved.")
+print("Policy and trajectory plots saved.")
 
 
 # ============================================================
@@ -900,7 +900,7 @@ def plot_value_heatmap(env, V, battery_level, rescue_status, charge_status=None,
 
     fig, ax = plt.subplots(1, 1, figsize=(8, 7))
 
-    # Custom colormap: red (low) → yellow → green (high)
+    # Custom colormap: red (low) -> yellow -> green (high)
     cmap = LinearSegmentedColormap.from_list('value_cmap',
         ['#D32F2F', '#FF9800', '#FFEB3B', '#8BC34A', '#2E7D32'])
 
@@ -928,9 +928,9 @@ def plot_value_heatmap(env, V, battery_level, rescue_status, charge_status=None,
     ax.set_yticks(range(env.rows))
     ax.set_yticklabels([f'Row {r}' for r in range(env.rows)])
 
-    rescued_str = ', '.join([f'T{i}={"✓" if s else "✗"}'
+    rescued_str = ', '.join([f'T{i}={"Y" if s else "N"}'
                              for i, s in enumerate(rescue_status)])
-    charge_str = ', '.join([f'C{i}={"✓" if s else "✗"}'
+    charge_str = ', '.join([f'C{i}={"Y" if s else "N"}'
                             for i, s in enumerate(charge_status)])
     ax.set_title(f'State-Value Heatmap V*(row,col)\nBattery={battery_level}, {rescued_str}, {charge_str}{title_suffix}',
                  fontsize=13, fontweight='bold')
@@ -971,12 +971,12 @@ OBSERVATIONS:
    - Cells near rescue targets (1,3) and (4,2) show HIGH values because the drone
      can reach them and collect +20 reward.
    - Danger zone cells (0,4), (2,0), (3,1) show LOWER values due to -10 penalty.
-   - The charging station (2,2) has moderate value — it's valuable as a recharge point.
+   - The charging station (2,2) has moderate value -- it's valuable as a recharge point.
 
 2. Low Battery (3), Both Unrescued:
    - Values DROP dramatically across the grid because the drone has very few moves.
    - Only cells very close to the charging station (2,2) retain positive values.
-   - Cells far from the charger have NEGATIVE values — the drone will likely die.
+   - Cells far from the charger have NEGATIVE values -- the drone will likely die.
    - This shows the critical importance of battery management.
 
 3. One Target Rescued (battery=8):
@@ -985,10 +985,10 @@ OBSERVATIONS:
    - The drone's policy concentrates on reaching the second target.
 
 4. Both Rescued:
-   - All values are 0 (terminal state — no more rewards to collect).
+   - All values are 0 (terminal state -- no more rewards to collect).
    - Confirms the environment correctly identifies all-rescued as terminal.
 """)
-print("✅ Heatmap analysis complete.")
+print("Heatmap analysis complete.")
 
 
 # ============================================================
@@ -1007,43 +1007,42 @@ DYNAMIC PROGRAMMING SCALABILITY ANALYSIS
 --------------------------------------------------------------
 The state space in our MDP grows EXPONENTIALLY with problem complexity:
 
-   |S| = (Grid Positions) × (Battery Levels) × 2^(Rescue Targets)
-         × 2^(Charging Stations)
+   |S| = (Grid Positions) x (Battery Levels) x 2^(Rescue Targets)
+         x 2^(Charging Stations)
 
-   Current (5×5, bat=15, 2 targets, 1 charger):
-       23 × 16 × 4 × 2 = 2,944 states → DP runs in seconds ✅
+   Current (5x5, bat=15, 2 targets, 1 charger):
+       23 x 16 x 4 x 2 = 2,944 states -> DP runs in seconds
 
    Scaled up scenarios:
-   ┌────────────────────────────────┬────────────┬──────────────┐
-   │ Scenario                       │ States     │ DP Feasible? │
-   ├────────────────────────────────┼────────────┼──────────────┤
-   │ 5×5, bat=15, 2 targets         │ ~3,000     │ ✅ Seconds    │
-   │ 10×10, bat=20, 5 targets       │ ~672,000   │ ⚠️ Minutes   │
-   │ 20×20, bat=30, 10 targets      │ ~12.6B     │ ❌ Impossible │
-   │ 50×50, bat=50, 20 targets      │ ~134T      │ ❌ Impossible │
-   └────────────────────────────────┴────────────┴──────────────┘
+   Scenario                         States        DP Feasible?
+   ---------------------------------------------------------------
+   5x5,  bat=15,  2 targets         ~3,000        Yes - Seconds
+   10x10, bat=20, 5 targets         ~672,000      Marginal - Minutes
+   20x20, bat=30, 10 targets        ~12.6B        No - Impossible
+   50x50, bat=50, 20 targets        ~134T         No - Impossible
+   ---------------------------------------------------------------
 
    Each added rescue target DOUBLES the state space.
    Each charging-station bonus flag DOUBLES it again.
-   Each added battery level adds (Positions × 2^targets) states.
+   Each added battery level adds (Positions x 2^targets) states.
    Larger grids scale quadratically in positions.
 
 
 2. WHY DP BECOMES IMPRACTICAL
 --------------------------------------------------------------
-   a) MEMORY: Must store V(s) for EVERY state — billions of entries.
-   b) COMPUTATION: Each iteration sweeps ALL states × ALL actions.
-      For 672K states × 5 actions = 3.36M transition computations per iteration.
+   a) MEMORY: Must store V(s) for EVERY state -- billions of entries.
+   b) COMPUTATION: Each iteration sweeps ALL states x ALL actions.
+      For 672K states x 5 actions = 3.36M transition computations per iteration.
    c) TRANSITION MODEL: Must have EXACT P(s'|s,a) for all state-action pairs.
       In real-world, the transition model is often unknown.
-   d) ITERATIONS: Though each iteration is O(|S|×|A|), convergence may
+   d) ITERATIONS: Though each iteration is O(|S|x|A|), convergence may
       require hundreds of iterations.
 
 
 3. HOW DEEP RL METHODS COULD HELP
 --------------------------------------------------------------
    Deep RL uses FUNCTION APPROXIMATION (neural networks) to estimate
-   V(s) or π(s) WITHOUT enumerating all states:
+   V(s) or pi(s) WITHOUT enumerating all states:
 
    a) DQN (Deep Q-Network):
       - Neural network takes state as input, outputs Q(s,a) for all actions.
@@ -1059,7 +1058,7 @@ The state space in our MDP grows EXPONENTIALLY with problem complexity:
       - DP computes V(s) independently for each state.
       - Neural nets generalize: similar states get similar values automatically.
       - A drone at (3,4) with battery=10 and (3,4) with battery=11 should
-        have similar values — Deep RL leverages this, DP does not.
+        have similar values -- Deep RL leverages this, DP does not.
 
 
 4. RELATION TO REAL-WORLD AUTONOMOUS DRONE SYSTEMS
@@ -1073,8 +1072,8 @@ The state space in our MDP grows EXPONENTIALLY with problem complexity:
 
    b) PARTIAL OBSERVABILITY:
       - Drone has limited camera/sensor range.
-      - Cannot see the entire grid — must infer hidden states.
-      - Requires POMDP (Partially Observable MDP) → even harder for DP.
+      - Cannot see the entire grid -- must infer hidden states.
+      - Requires POMDP (Partially Observable MDP) -> even harder for DP.
 
    c) DYNAMIC ENVIRONMENTS:
       - Weather changes (wind direction/strength varies over time).
@@ -1084,13 +1083,13 @@ The state space in our MDP grows EXPONENTIALLY with problem complexity:
 
    d) MULTI-AGENT COORDINATION:
       - Multiple drones must coordinate without collision.
-      - Joint state space = product of individual spaces → exponential blowup.
+      - Joint state space = product of individual spaces -> exponential blowup.
 
    CONCLUSION:
    DP provides the THEORETICAL FOUNDATION and guarantees optimality for
    small, fully-known environments. For real-world drone systems, Deep RL
    methods (or hybrid approaches) are necessary to handle scale, uncertainty,
-   and continuous dynamics. Our 5×5 grid demonstrates the principles; scaling
+   and continuous dynamics. Our 5x5 grid demonstrates the principles; scaling
    to reality requires the tools of modern deep reinforcement learning.
 
 ============================================================
@@ -1101,14 +1100,14 @@ The state space in our MDP grows EXPONENTIALLY with problem complexity:
 # Cell 10: Summary
 # ============================================================
 print("=" * 60)
-print("ASSIGNMENT PART 2 — COMPLETE SUMMARY")
+print("ASSIGNMENT PART 2 -- COMPLETE SUMMARY")
 print("=" * 60)
 print(f"""
 Group ID           : 151
-Grid               : 5×5
+Grid               : 5x5
 Algorithm          : Value Iteration
-Discount (γ)       : {GAMMA}
-Threshold (θ)      : {THETA}
+Discount (gamma)   : {GAMMA}
+Threshold (theta)  : {THETA}
 Convergence Iters  : {vi_info['iterations']}
 Runtime            : {vi_info['runtime_seconds']:.2f} seconds
 Final Delta        : {vi_info['final_delta']:.6f}
@@ -1117,11 +1116,11 @@ V*(start)          : {V_star.get(initial_state, 0):.4f}
 Optimal First Move : {ACTION_LABELS.get(policy_star.get(initial_state), 'N/A')}
 
 Deliverables:
-  ✅ 1. Custom Drone Rescue Environment (1 mark)
-  ✅ 2. Value Iteration — V* and π* computed (2 marks)
-  ✅ 3. Policy Visualisation — arrows + trajectory (1 mark)
-  ✅ 4. State-Value Heatmap Analysis (1 mark)
-  ✅ 5. DP Scalability Discussion (1 mark)
+  1. Custom Drone Rescue Environment (1 mark)
+  2. Value Iteration -- V* and pi* computed (2 marks)
+  3. Policy Visualisation -- arrows + trajectory (1 mark)
+  4. State-Value Heatmap Analysis (1 mark)
+  5. DP Scalability Discussion (1 mark)
 
 Files saved:
   - convergence_plot.png
@@ -1134,4 +1133,4 @@ Files saved:
   - heatmap_one_rescued.png
   - heatmap_all_rescued.png
 """)
-print("🎉 Assignment Part 2 Complete!")
+print("Assignment Part 2 Complete.")
